@@ -10,12 +10,61 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
+
+#include "BudgetManager.h"
+#include "Expense.h"
+#include "Bill.h"
+#include "Date.h"
+
+// Phase 4 Checkpoint C: CLI smoke test. Runs before any GLFW work so the
+// output reaches the terminal even if the window pops up immediately after.
+static void run_cli_smoke_test() {
+    std::cout << "---------- BudgetManager smoke test ----------" << std::endl;
+
+    BudgetManager manager;
+
+    // Budget setup
+    manager.setBudgetLimit("Food", 500.0);
+    manager.setBudgetLimit("Transport", 200.0);
+
+    // Expenses
+    Expense e1; e1.category = "Food"; e1.amount = 400.0; e1.date = Date(1, 4, 2025); e1.description = "Groceries";
+    manager.addExpense(e1);
+    manager.checkBudget("Food");        // expect: WARNING (80%)
+
+    Expense e2; e2.category = "Food"; e2.amount = 150.0; e2.date = Date(3, 4, 2025); e2.description = "Restaurant";
+    manager.addExpense(e2);
+    manager.checkBudget("Food");        // expect: EXCEEDED (110%)
+
+    Expense e3; e3.category = "Transport"; e3.amount = 50.0; e3.date = Date(5, 4, 2025); e3.description = "Bus pass";
+    manager.addExpense(e3);
+    manager.checkBudget("Transport");   // expect: OK (25%)
+
+    // Bills
+    Bill rent; rent.name = "Rent"; rent.amountDue = 1200.0; rent.dueDate = Date(1, 5, 2025);
+    Bill internet; internet.name = "Internet"; internet.amountDue = 60.0; internet.dueDate = Date(15, 4, 2025);
+    manager.addBill(rent);
+    manager.addBill(internet);
+    std::cout << "Next bill: " << manager.getNextBill().name << std::endl; // expect: Internet
+
+    // Range query
+    auto expenses = manager.getExpensesByRange(Date(1, 4, 2025), Date(4, 4, 2025));
+    std::cout << "Expenses Apr 1-4: " << expenses.size() << std::endl;     // expect: 2
+
+    // Report
+    manager.generateReport();
+
+    std::cout << "---------- end smoke test ----------" << std::endl;
+}
 
 static void glfw_error_callback(int error, const char* description) {
     std::fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
 int main() {
+    run_cli_smoke_test();
+
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
         std::fprintf(stderr, "Failed to initialize GLFW\n");
