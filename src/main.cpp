@@ -1,6 +1,6 @@
 // main.cpp -- Finance Manager
-// Phase 5 Checkpoint D: full ImGui UI.
-// Five fixed panels in a 1280x720 window driven by a single BudgetManager.
+// Full ImGui UI with dynamic panel layout (scales with window size)
+// and F11 fullscreen toggle.
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -19,8 +19,7 @@
 #include "Date.h"
 #include "CategoryInfo.h"
 
-// Phase 4 Checkpoint C: CLI smoke test. Runs before any GLFW work so the
-// output reaches the terminal even if the window pops up immediately after.
+// CLI smoke test preserved from Phase 4.
 static void run_cli_smoke_test() {
     std::cout << "---------- BudgetManager smoke test ----------" << std::endl;
 
@@ -51,12 +50,40 @@ static void run_cli_smoke_test() {
     std::cout << "Expenses Apr 1-4: " << expenses.size() << std::endl;
 
     manager.generateReport();
-
     std::cout << "---------- end smoke test ----------" << std::endl;
 }
 
 static void glfw_error_callback(int error, const char* description) {
     std::fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+}
+
+// Fullscreen toggle state — stored at file scope so the key callback can reach it.
+static bool  s_isFullscreen = false;
+static int   s_savedX = 100, s_savedY = 100;
+static int   s_savedW = 1280, s_savedH = 720;
+
+static void key_callback(GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
+    if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
+        if (!s_isFullscreen) {
+            glfwGetWindowPos(window,  &s_savedX, &s_savedY);
+            glfwGetWindowSize(window, &s_savedW, &s_savedH);
+            GLFWmonitor*       monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
+            glfwSetWindowMonitor(window, monitor, 0, 0,
+                                 mode->width, mode->height, mode->refreshRate);
+            s_isFullscreen = true;
+        } else {
+            glfwSetWindowMonitor(window, nullptr,
+                                 s_savedX, s_savedY, s_savedW, s_savedH, 0);
+            s_isFullscreen = false;
+        }
+    }
+    // ESC exits fullscreen (but does not close the window).
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS && s_isFullscreen) {
+        glfwSetWindowMonitor(window, nullptr,
+                             s_savedX, s_savedY, s_savedW, s_savedH, 0);
+        s_isFullscreen = false;
+    }
 }
 
 int main() {
@@ -68,8 +95,6 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    // OpenGL 3.3 core profile. GLFW_OPENGL_FORWARD_COMPAT is required on macOS
-    // for any 3.2+ core profile context (Apple drops removed-functionality bits).
     const char* glsl_version = "#version 150";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -84,12 +109,12 @@ int main() {
     }
 
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // vsync
+    glfwSwapInterval(1);
+    glfwSetKeyCallback(window, key_callback);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    (void)io;
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     ImGui::StyleColorsDark();
@@ -102,30 +127,40 @@ int main() {
     // ----- App state -----
     BudgetManager manager;
 
-    // Log Expense form
-    char expCategory[64]     = "";
-    char expDescription[128] = "";
-    int  expDay = 1, expMonth = 1, expYear = 2025;
+    char   expCategory[64]     = "";
+    char   expDescription[128] = "";
+    int    expDay = 1, expMonth = 1, expYear = 2025;
     double expAmount = 0.0;
     std::string lastExpStatus;
 
-    // Add Bill form
     char   billName[64] = "";
     double billAmount   = 0.0;
     int    billDay = 1, billMonth = 1, billYear = 2025;
 
-    // Add Category form
     char   catName[64] = "";
     double catLimit    = 0.0;
 
     const ImGuiWindowFlags fixedFlags =
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove    |
+        ImGuiWindowFlags_NoResize  |
         ImGuiWindowFlags_NoCollapse;
 
     // ----- Main loop -----
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+
+        // Get current window size each frame so panels scale on resize/fullscreen.
+        int winW, winH;
+        glfwGetWindowSize(window, &winW, &winH);
+        float W = static_cast<float>(winW);
+        float H = static_cast<float>(winH);
+
+        // Layout: 3 columns. Column 1 = 33%, columns 2 & 3 split remaining equally.
+        float c1W = W * 0.33f;
+        float c2W = (W - c1W) * 0.5f;
+        float c3W = W - c1W - c2W;
+        float topH  = H * 0.5f;
+        float botH  = H - topH;
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -133,17 +168,17 @@ int main() {
 
         // ===== Panel 1: Budget Overview (left, full height) =====
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(420, 720), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(c1W, H), ImGuiCond_Always);
         ImGui::Begin("Budget Overview", nullptr, fixedFlags);
         {
             auto snapshot = manager.getBudgetSnapshot();
             if (ImGui::BeginTable("BudgetTbl", 5,
                 ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
                 ImGui::TableSetupColumn("Category",  ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableSetupColumn("Limit",     ImGuiTableColumnFlags_WidthFixed, 70.f);
-                ImGui::TableSetupColumn("Spent",     ImGuiTableColumnFlags_WidthFixed, 70.f);
-                ImGui::TableSetupColumn("% Used",    ImGuiTableColumnFlags_WidthFixed, 60.f);
-                ImGui::TableSetupColumn("Status",    ImGuiTableColumnFlags_WidthFixed, 75.f);
+                ImGui::TableSetupColumn("Limit",     ImGuiTableColumnFlags_WidthFixed, 60.f);
+                ImGui::TableSetupColumn("Spent",     ImGuiTableColumnFlags_WidthFixed, 60.f);
+                ImGui::TableSetupColumn("% Used",    ImGuiTableColumnFlags_WidthFixed, 55.f);
+                ImGui::TableSetupColumn("Status",    ImGuiTableColumnFlags_WidthFixed, 70.f);
                 ImGui::TableHeadersRow();
                 for (auto& info : snapshot) {
                     double pct = (info.budgetLimit > 0.0)
@@ -165,60 +200,24 @@ int main() {
         }
         ImGui::End();
 
-        // ===== Panel 2: Log Expense (top-right) =====
-        ImGui::SetNextWindowPos(ImVec2(850, 0), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
-        ImGui::Begin("Log Expense", nullptr, fixedFlags);
+        // ===== Panel 2: Set Budget (middle, top half) =====
+        ImGui::SetNextWindowPos(ImVec2(c1W, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(c2W, topH), ImGuiCond_Always);
+        ImGui::Begin("Set Budget", nullptr, fixedFlags);
         {
-            ImGui::InputText("Category##e",    expCategory,    sizeof(expCategory));
-            ImGui::InputText("Description##e", expDescription, sizeof(expDescription));
-            ImGui::InputDouble("Amount##e", &expAmount, 0.01, 10.0, "$%.2f");
-            ImGui::Text("Date:"); ImGui::SameLine();
-            ImGui::SetNextItemWidth(50); ImGui::InputInt("D##e", &expDay,   0, 0); ImGui::SameLine();
-            ImGui::SetNextItemWidth(50); ImGui::InputInt("M##e", &expMonth, 0, 0); ImGui::SameLine();
-            ImGui::SetNextItemWidth(70); ImGui::InputInt("Y##e", &expYear,  0, 0);
-
-            if (ImGui::Button("Log Expense") && expAmount > 0.0 && expCategory[0] != '\0') {
-                Expense e;
-                e.category    = expCategory;
-                e.description = expDescription;
-                e.amount      = expAmount;
-                e.date        = Date(expDay, expMonth, expYear);
-                manager.addExpense(e);
-
-                // Derive status from the snapshot rather than capturing stdout
-                // from checkBudget(). Keeps UI rendering side-effect-free.
-                lastExpStatus.clear();
-                for (auto& ci : manager.getBudgetSnapshot()) {
-                    if (ci.name == e.category) {
-                        if (ci.budgetLimit == 0.0) {
-                            lastExpStatus = "Logged (no budget set)";
-                        } else {
-                            double p = ci.totalSpent / ci.budgetLimit * 100.0;
-                            if      (p > 100.0) lastExpStatus = "EXCEEDED budget!";
-                            else if (p >= 80.0) lastExpStatus = "WARNING: near limit";
-                            else                lastExpStatus = "OK";
-                        }
-                    }
-                }
-                expAmount         = 0.0;
-                expCategory[0]    = '\0';
-                expDescription[0] = '\0';
-            }
-            if (!lastExpStatus.empty()) {
-                if      (lastExpStatus.find("EXCEEDED") != std::string::npos)
-                    ImGui::TextColored({1.f,0.2f,0.2f,1.f}, "%s", lastExpStatus.c_str());
-                else if (lastExpStatus.find("WARNING")  != std::string::npos)
-                    ImGui::TextColored({1.f,0.85f,0.f,1.f}, "%s", lastExpStatus.c_str());
-                else
-                    ImGui::TextColored({0.2f,0.9f,0.2f,1.f}, "%s", lastExpStatus.c_str());
+            ImGui::InputText("Name##c",           catName, sizeof(catName));
+            ImGui::InputDouble("Budget Limit##c", &catLimit, 1.0, 100.0, "$%.2f");
+            if (ImGui::Button("Set Budget") && catName[0] != '\0' && catLimit > 0.0) {
+                manager.setBudgetLimit(catName, catLimit);
+                catName[0] = '\0';
+                catLimit   = 0.0;
             }
         }
         ImGui::End();
 
-        // ===== Panel 3: Bills (bottom-middle) =====
-        ImGui::SetNextWindowPos(ImVec2(420, 360), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
+        // ===== Panel 3: Bills (middle, bottom half) =====
+        ImGui::SetNextWindowPos(ImVec2(c1W, topH), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(c2W, botH), ImGuiCond_Always);
         ImGui::Begin("Bills", nullptr, fixedFlags);
         {
             ImGui::Text("Pending Bills:");
@@ -275,31 +274,66 @@ int main() {
         }
         ImGui::End();
 
-        // ===== Panel 4: Set Budget (top-middle) =====
-        ImGui::SetNextWindowPos(ImVec2(420, 0), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
-        ImGui::Begin("Set Budget", nullptr, fixedFlags);
+        // ===== Panel 4: Log Expense (right, top half) =====
+        ImGui::SetNextWindowPos(ImVec2(c1W + c2W, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(c3W, topH), ImGuiCond_Always);
+        ImGui::Begin("Log Expense", nullptr, fixedFlags);
         {
-            ImGui::InputText("Name##c",           catName, sizeof(catName));
-            ImGui::InputDouble("Budget Limit##c", &catLimit, 1.0, 100.0, "$%.2f");
-            if (ImGui::Button("Set Budget") && catName[0] != '\0' && catLimit > 0.0) {
-                manager.setBudgetLimit(catName, catLimit);
-                catName[0] = '\0';
-                catLimit   = 0.0;
+            ImGui::InputText("Category##e",    expCategory,    sizeof(expCategory));
+            ImGui::InputText("Description##e", expDescription, sizeof(expDescription));
+            ImGui::InputDouble("Amount##e", &expAmount, 0.01, 10.0, "$%.2f");
+            ImGui::Text("Date:"); ImGui::SameLine();
+            ImGui::SetNextItemWidth(50); ImGui::InputInt("D##e", &expDay,   0, 0); ImGui::SameLine();
+            ImGui::SetNextItemWidth(50); ImGui::InputInt("M##e", &expMonth, 0, 0); ImGui::SameLine();
+            ImGui::SetNextItemWidth(70); ImGui::InputInt("Y##e", &expYear,  0, 0);
+
+            if (ImGui::Button("Log Expense") && expAmount > 0.0 && expCategory[0] != '\0') {
+                Expense e;
+                e.category    = expCategory;
+                e.description = expDescription;
+                e.amount      = expAmount;
+                e.date        = Date(expDay, expMonth, expYear);
+                manager.addExpense(e);
+
+                lastExpStatus.clear();
+                for (auto& ci : manager.getBudgetSnapshot()) {
+                    if (ci.name == e.category) {
+                        if (ci.budgetLimit == 0.0) {
+                            lastExpStatus = "Logged (no budget set)";
+                        } else {
+                            double p = ci.totalSpent / ci.budgetLimit * 100.0;
+                            if      (p > 100.0) lastExpStatus = "EXCEEDED budget!";
+                            else if (p >= 80.0) lastExpStatus = "WARNING: near limit";
+                            else                lastExpStatus = "OK";
+                        }
+                    }
+                }
+                expAmount         = 0.0;
+                expCategory[0]    = '\0';
+                expDescription[0] = '\0';
+            }
+            if (!lastExpStatus.empty()) {
+                if      (lastExpStatus.find("EXCEEDED") != std::string::npos)
+                    ImGui::TextColored({1.f,0.2f,0.2f,1.f}, "%s", lastExpStatus.c_str());
+                else if (lastExpStatus.find("WARNING")  != std::string::npos)
+                    ImGui::TextColored({1.f,0.85f,0.f,1.f}, "%s", lastExpStatus.c_str());
+                else
+                    ImGui::TextColored({0.2f,0.9f,0.2f,1.f}, "%s", lastExpStatus.c_str());
             }
         }
         ImGui::End();
 
-        // ===== Panel 5: Expense History (bottom-right) =====
-        ImGui::SetNextWindowPos(ImVec2(850, 360), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
+        // ===== Panel 5: Expense History (right, bottom half) =====
+        ImGui::SetNextWindowPos(ImVec2(c1W + c2W, topH), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(c3W, botH), ImGuiCond_Always);
         ImGui::Begin("Expense History", nullptr, fixedFlags);
         {
             auto all = manager.getExpensesByRange(Date(1,1,2000), Date(31,12,2099));
+            float tableH = botH - 40.f;
             if (ImGui::BeginTable("ExpTbl", 4,
                 ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit,
-                ImVec2(0, 260))) {
+                ImVec2(0, tableH))) {
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableSetupColumn("Date",        ImGuiTableColumnFlags_WidthFixed,   90.f);
                 ImGui::TableSetupColumn("Category",    ImGuiTableColumnFlags_WidthStretch);
@@ -331,11 +365,9 @@ int main() {
         glfwSwapBuffers(window);
     }
 
-    // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-
     glfwDestroyWindow(window);
     glfwTerminate();
 
