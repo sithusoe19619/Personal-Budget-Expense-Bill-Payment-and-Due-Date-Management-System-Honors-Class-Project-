@@ -131,24 +131,28 @@ int main() {
     // ----- App state -----
     BudgetManager manager;
 
+    // Seed all date inputs from real clock so they match the default Budget Overview month.
+    time_t now_t  = std::time(nullptr);
+    std::tm* lt   = std::localtime(&now_t);
+    const int todayDay   = lt->tm_mday;
+    const int todayMonth = lt->tm_mon + 1;
+    const int todayYear  = lt->tm_year + 1900;
+
     char   expCategory[64]     = "";
     char   expDescription[128] = "";
-    int    expDay = 1, expMonth = 1, expYear = 2025;
+    int    expDay = todayDay, expMonth = todayMonth, expYear = todayYear;
     double expAmount = 0.0;
     std::string lastExpStatus;
 
     char   billName[64] = "";
     double billAmount   = 0.0;
-    int    billDay = 1, billMonth = 1, billYear = 2025;
+    int    billDay = todayDay, billMonth = todayMonth, billYear = todayYear;
 
     char   catName[64] = "";
     double catLimit    = 0.0;
 
-    // Default Budget Overview to the current real-clock month.
-    time_t now_t = std::time(nullptr);
-    std::tm* lt  = std::localtime(&now_t);
-    int viewMonth = lt->tm_mon + 1;
-    int viewYear  = lt->tm_year + 1900;
+    int viewMonth = todayMonth;
+    int viewYear  = todayYear;
     // Navigation bounds: no future months; up to 2 years back.
     const int maxMonth = viewMonth, maxYear = viewYear;
     const int minMonth = viewMonth, minYear = viewYear - 2;
