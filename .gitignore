@@ -11,3 +11,4 @@ run_tests
 .vscode/
 .idea/
 *.swp
+.claude/
