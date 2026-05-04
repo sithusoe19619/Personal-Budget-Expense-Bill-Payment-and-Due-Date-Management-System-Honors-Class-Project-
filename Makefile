@@ -10,7 +10,9 @@ IMGUI_SRC = imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp \
             imgui/backends/imgui_impl_glfw.cpp \
             imgui/backends/imgui_impl_opengl3.cpp
 
-APP_SRC = $(wildcard src/*.cpp)
+# Exclude tests.cpp from the main app build -- it has its own main() and is
+# only compiled by the `test` target below.
+APP_SRC = $(filter-out src/tests.cpp,$(wildcard src/*.cpp))
 TARGET  = finance_app
 
 all: $(TARGET)

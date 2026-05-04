@@ -9,6 +9,7 @@
 #include "Expense.h"
 #include "Bill.h"
 #include "Date.h"
+#include "CategoryInfo.h"
 
 class BudgetManager {
 private:
@@ -26,6 +27,7 @@ public:
     void markBillPaid(const std::string& name, const Date& paymentDate);
     std::vector<Expense> getExpensesByRange(const Date& start, const Date& end);
     void generateReport();
+    std::vector<CategoryInfo> getBudgetSnapshot();
 };
 
 #endif // BUDGETMANAGER_H

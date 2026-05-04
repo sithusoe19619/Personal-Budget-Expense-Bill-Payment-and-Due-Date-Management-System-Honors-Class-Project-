@@ -175,3 +175,17 @@ void BudgetManager::generateReport() {
     }
     std::cout << "=========================" << std::endl;
 }
+
+// UI helper: snapshot every tracked category as a value-copy vector so the
+// renderer can iterate without touching internal HashMap pointers. Non-const
+// because HashMap::get() is non-const.
+std::vector<CategoryInfo> BudgetManager::getBudgetSnapshot() {
+    std::vector<CategoryInfo> result;
+    for (const auto& name : s_categoryNames) {
+        CategoryInfo* p = categoryMap.get(name);
+        if (p != nullptr) {
+            result.push_back(*p);
+        }
+    }
+    return result;
+}

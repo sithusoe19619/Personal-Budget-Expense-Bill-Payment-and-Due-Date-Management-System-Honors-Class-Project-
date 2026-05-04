@@ -1,6 +1,6 @@
-// main.cpp — Finance Manager
-// Phase 2 entry point: blank ImGui + GLFW + OpenGL3 window.
-// All app/UI/data-structure work is wired in from later phases.
+// main.cpp -- Finance Manager
+// Phase 5 Checkpoint D: full ImGui UI.
+// Five fixed panels in a 1280x720 window driven by a single BudgetManager.
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -11,11 +11,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <string>
 
 #include "BudgetManager.h"
 #include "Expense.h"
 #include "Bill.h"
 #include "Date.h"
+#include "CategoryInfo.h"
 
 // Phase 4 Checkpoint C: CLI smoke test. Runs before any GLFW work so the
 // output reaches the terminal even if the window pops up immediately after.
@@ -24,35 +26,30 @@ static void run_cli_smoke_test() {
 
     BudgetManager manager;
 
-    // Budget setup
     manager.setBudgetLimit("Food", 500.0);
     manager.setBudgetLimit("Transport", 200.0);
 
-    // Expenses
     Expense e1; e1.category = "Food"; e1.amount = 400.0; e1.date = Date(1, 4, 2025); e1.description = "Groceries";
     manager.addExpense(e1);
-    manager.checkBudget("Food");        // expect: WARNING (80%)
+    manager.checkBudget("Food");
 
     Expense e2; e2.category = "Food"; e2.amount = 150.0; e2.date = Date(3, 4, 2025); e2.description = "Restaurant";
     manager.addExpense(e2);
-    manager.checkBudget("Food");        // expect: EXCEEDED (110%)
+    manager.checkBudget("Food");
 
     Expense e3; e3.category = "Transport"; e3.amount = 50.0; e3.date = Date(5, 4, 2025); e3.description = "Bus pass";
     manager.addExpense(e3);
-    manager.checkBudget("Transport");   // expect: OK (25%)
+    manager.checkBudget("Transport");
 
-    // Bills
     Bill rent; rent.name = "Rent"; rent.amountDue = 1200.0; rent.dueDate = Date(1, 5, 2025);
     Bill internet; internet.name = "Internet"; internet.amountDue = 60.0; internet.dueDate = Date(15, 4, 2025);
     manager.addBill(rent);
     manager.addBill(internet);
-    std::cout << "Next bill: " << manager.getNextBill().name << std::endl; // expect: Internet
+    std::cout << "Next bill: " << manager.getNextBill().name << std::endl;
 
-    // Range query
     auto expenses = manager.getExpensesByRange(Date(1, 4, 2025), Date(4, 4, 2025));
-    std::cout << "Expenses Apr 1-4: " << expenses.size() << std::endl;     // expect: 2
+    std::cout << "Expenses Apr 1-4: " << expenses.size() << std::endl;
 
-    // Report
     manager.generateReport();
 
     std::cout << "---------- end smoke test ----------" << std::endl;
@@ -89,7 +86,6 @@ int main() {
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // vsync
 
-    // ImGui setup
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -103,7 +99,31 @@ int main() {
 
     ImVec4 clear_color = ImVec4(0.10f, 0.10f, 0.12f, 1.00f);
 
-    // Main loop
+    // ----- App state -----
+    BudgetManager manager;
+
+    // Log Expense form
+    char expCategory[64]     = "";
+    char expDescription[128] = "";
+    int  expDay = 1, expMonth = 1, expYear = 2025;
+    double expAmount = 0.0;
+    std::string lastExpStatus;
+
+    // Add Bill form
+    char   billName[64] = "";
+    double billAmount   = 0.0;
+    int    billDay = 1, billMonth = 1, billYear = 2025;
+
+    // Add Category form
+    char   catName[64] = "";
+    double catLimit    = 0.0;
+
+    const ImGuiWindowFlags fixedFlags =
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoCollapse;
+
+    // ----- Main loop -----
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -111,8 +131,172 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Placeholder until Wave 2 panels are wired in.
-        ImGui::ShowDemoWindow();
+        // ===== Panel 1: Budget Overview (left, full height) =====
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(420, 720), ImGuiCond_Always);
+        ImGui::Begin("Budget Overview", nullptr, fixedFlags);
+        {
+            auto snapshot = manager.getBudgetSnapshot();
+            if (ImGui::BeginTable("BudgetTbl", 5,
+                ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
+                ImGui::TableSetupColumn("Category",  ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Limit",     ImGuiTableColumnFlags_WidthFixed, 70.f);
+                ImGui::TableSetupColumn("Spent",     ImGuiTableColumnFlags_WidthFixed, 70.f);
+                ImGui::TableSetupColumn("% Used",    ImGuiTableColumnFlags_WidthFixed, 60.f);
+                ImGui::TableSetupColumn("Status",    ImGuiTableColumnFlags_WidthFixed, 75.f);
+                ImGui::TableHeadersRow();
+                for (auto& info : snapshot) {
+                    double pct = (info.budgetLimit > 0.0)
+                                 ? (info.totalSpent / info.budgetLimit * 100.0) : 0.0;
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0); ImGui::Text("%s", info.name.c_str());
+                    ImGui::TableSetColumnIndex(1); ImGui::Text("$%.0f", info.budgetLimit);
+                    ImGui::TableSetColumnIndex(2); ImGui::Text("$%.0f", info.totalSpent);
+                    ImGui::TableSetColumnIndex(3); ImGui::Text("%.0f%%", pct);
+                    ImGui::TableSetColumnIndex(4);
+                    if      (info.budgetLimit == 0.0) ImGui::TextColored({0.6f,0.6f,0.6f,1.f}, "no limit");
+                    else if (pct > 100.0)             ImGui::TextColored({1.f,0.2f,0.2f,1.f},  "EXCEEDED");
+                    else if (pct >= 80.0)             ImGui::TextColored({1.f,0.85f,0.f,1.f},  "WARNING");
+                    else                              ImGui::TextColored({0.2f,0.9f,0.2f,1.f}, "OK");
+                }
+                ImGui::EndTable();
+            }
+            if (snapshot.empty()) ImGui::TextDisabled("No categories yet.");
+        }
+        ImGui::End();
+
+        // ===== Panel 2: Log Expense (top-middle) =====
+        ImGui::SetNextWindowPos(ImVec2(420, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
+        ImGui::Begin("Log Expense", nullptr, fixedFlags);
+        {
+            ImGui::InputText("Category##e",    expCategory,    sizeof(expCategory));
+            ImGui::InputText("Description##e", expDescription, sizeof(expDescription));
+            ImGui::InputDouble("Amount##e", &expAmount, 0.01, 10.0, "$%.2f");
+            ImGui::Text("Date:"); ImGui::SameLine();
+            ImGui::SetNextItemWidth(50); ImGui::InputInt("D##e", &expDay,   0, 0); ImGui::SameLine();
+            ImGui::SetNextItemWidth(50); ImGui::InputInt("M##e", &expMonth, 0, 0); ImGui::SameLine();
+            ImGui::SetNextItemWidth(70); ImGui::InputInt("Y##e", &expYear,  0, 0);
+
+            if (ImGui::Button("Log Expense") && expAmount > 0.0 && expCategory[0] != '\0') {
+                Expense e;
+                e.category    = expCategory;
+                e.description = expDescription;
+                e.amount      = expAmount;
+                e.date        = Date(expDay, expMonth, expYear);
+                manager.addExpense(e);
+
+                // Derive status from the snapshot rather than capturing stdout
+                // from checkBudget(). Keeps UI rendering side-effect-free.
+                lastExpStatus.clear();
+                for (auto& ci : manager.getBudgetSnapshot()) {
+                    if (ci.name == e.category) {
+                        if (ci.budgetLimit == 0.0) {
+                            lastExpStatus = "Logged (no budget set)";
+                        } else {
+                            double p = ci.totalSpent / ci.budgetLimit * 100.0;
+                            if      (p > 100.0) lastExpStatus = "EXCEEDED budget!";
+                            else if (p >= 80.0) lastExpStatus = "WARNING: near limit";
+                            else                lastExpStatus = "OK";
+                        }
+                    }
+                }
+                expAmount         = 0.0;
+                expCategory[0]    = '\0';
+                expDescription[0] = '\0';
+            }
+            if (!lastExpStatus.empty()) {
+                if      (lastExpStatus.find("EXCEEDED") != std::string::npos)
+                    ImGui::TextColored({1.f,0.2f,0.2f,1.f}, "%s", lastExpStatus.c_str());
+                else if (lastExpStatus.find("WARNING")  != std::string::npos)
+                    ImGui::TextColored({1.f,0.85f,0.f,1.f}, "%s", lastExpStatus.c_str());
+                else
+                    ImGui::TextColored({0.2f,0.9f,0.2f,1.f}, "%s", lastExpStatus.c_str());
+            }
+        }
+        ImGui::End();
+
+        // ===== Panel 3: Bills (bottom-middle) =====
+        ImGui::SetNextWindowPos(ImVec2(420, 360), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
+        ImGui::Begin("Bills", nullptr, fixedFlags);
+        {
+            ImGui::Text("Next Due Bill:");
+            ImGui::Separator();
+            if (manager.hasPendingBills()) {
+                Bill next = manager.getNextBill();
+                ImGui::Text("%-10s  $%.2f", next.name.c_str(), next.amountDue);
+                ImGui::Text("Due: %s", next.dueDate.toString().c_str());
+                ImGui::Spacing();
+                if (ImGui::Button("Mark as Paid")) {
+                    manager.markBillPaid(next.name, Date(4, 5, 2025));
+                }
+            } else {
+                ImGui::TextDisabled("No pending bills.");
+            }
+            ImGui::Separator();
+            ImGui::Text("Add Bill:");
+            ImGui::InputText("Name##b",     billName,   sizeof(billName));
+            ImGui::InputDouble("Amount##b", &billAmount, 0.01, 10.0, "$%.2f");
+            ImGui::Text("Due:"); ImGui::SameLine();
+            ImGui::SetNextItemWidth(50); ImGui::InputInt("D##b", &billDay,   0, 0); ImGui::SameLine();
+            ImGui::SetNextItemWidth(50); ImGui::InputInt("M##b", &billMonth, 0, 0); ImGui::SameLine();
+            ImGui::SetNextItemWidth(70); ImGui::InputInt("Y##b", &billYear,  0, 0);
+            if (ImGui::Button("Add Bill") && billName[0] != '\0' && billAmount > 0.0) {
+                Bill b;
+                b.name      = billName;
+                b.amountDue = billAmount;
+                b.dueDate   = Date(billDay, billMonth, billYear);
+                manager.addBill(b);
+                billName[0] = '\0';
+                billAmount  = 0.0;
+            }
+        }
+        ImGui::End();
+
+        // ===== Panel 4: Add Category (top-right) =====
+        ImGui::SetNextWindowPos(ImVec2(850, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
+        ImGui::Begin("Add Category", nullptr, fixedFlags);
+        {
+            ImGui::InputText("Name##c",           catName, sizeof(catName));
+            ImGui::InputDouble("Budget Limit##c", &catLimit, 1.0, 100.0, "$%.2f");
+            if (ImGui::Button("Set Budget") && catName[0] != '\0' && catLimit > 0.0) {
+                manager.setBudgetLimit(catName, catLimit);
+                catName[0] = '\0';
+                catLimit   = 0.0;
+            }
+        }
+        ImGui::End();
+
+        // ===== Panel 5: Expense History (bottom-right) =====
+        ImGui::SetNextWindowPos(ImVec2(850, 360), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
+        ImGui::Begin("Expense History", nullptr, fixedFlags);
+        {
+            auto all = manager.getExpensesByRange(Date(1,1,2000), Date(31,12,2099));
+            if (ImGui::BeginTable("ExpTbl", 4,
+                ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit,
+                ImVec2(0, 260))) {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Date",        ImGuiTableColumnFlags_WidthFixed,   90.f);
+                ImGui::TableSetupColumn("Category",    ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Amount",      ImGuiTableColumnFlags_WidthFixed,   65.f);
+                ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableHeadersRow();
+                for (auto& e : all) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0); ImGui::Text("%s", e.date.toString().c_str());
+                    ImGui::TableSetColumnIndex(1); ImGui::Text("%s", e.category.c_str());
+                    ImGui::TableSetColumnIndex(2); ImGui::Text("$%.2f", e.amount);
+                    ImGui::TableSetColumnIndex(3); ImGui::Text("%s", e.description.c_str());
+                }
+                ImGui::EndTable();
+            }
+            if (all.empty()) ImGui::TextDisabled("No expenses yet.");
+        }
+        ImGui::End();
 
         ImGui::Render();
 
