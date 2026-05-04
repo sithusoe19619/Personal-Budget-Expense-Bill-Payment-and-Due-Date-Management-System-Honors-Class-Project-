@@ -7,34 +7,47 @@ classDiagram
         +addBill(Bill b) void
         +setBudgetLimit(string category, double limit) void
         +checkBudget(string category) void
+        +hasPendingBills() bool
         +getNextBill() Bill
         +markBillPaid(string name, Date paymentDate) void
         +getExpensesByRange(Date start, Date end) vector~Expense~
         +generateReport() void
+        +getBudgetSnapshot() vector~CategoryInfo~
     }
 
     class BST {
         -BSTNode root
         +insert(Expense e) void
-        +search(Date d) Expense
+        +search(Date d) vector~Expense~
         +rangeQuery(Date start, Date end) vector~Expense~
         +inOrder() vector~Expense~
         -insertHelper(BSTNode node, Expense e) BSTNode
+        -inOrderHelper(BSTNode node, vector~Expense~ result) void
         -rangeHelper(BSTNode node, Date start, Date end, vector~Expense~ result) void
+        -destroyTree(BSTNode node) void
+    }
+
+    class BSTNode {
+        +Expense data
+        +BSTNode left
+        +BSTNode right
     }
 
     class MinHeap {
-        -Bill[] heap
+        -Bill heap
         -int size
+        -int capacity
         +insert(Bill bill) void
         +extractMin() Bill
         +peek() Bill
+        +isEmpty() bool
+        +markPaidByName(string name, Date paymentDate) bool
         -heapifyUp(int index) void
         -heapifyDown(int index) void
     }
 
     class HashMap {
-        -Entry[] buckets
+        -Entry buckets
         -int capacity
         -int size
         +insert(string key, CategoryInfo value) void
@@ -43,6 +56,13 @@ classDiagram
         +contains(string key) bool
         -hash(string key) int
         -resize() void
+    }
+
+    class Entry {
+        +string key
+        +CategoryInfo value
+        +bool occupied
+        +bool isDeleted
     }
 
     class Expense {
@@ -72,12 +92,28 @@ classDiagram
         +isOverBudget() bool
     }
 
+    class Date {
+        <<struct>>
+        +int day
+        +int month
+        +int year
+        +operator==(Date other) bool
+        +isBefore(Date other) bool
+        +isAfter(Date other) bool
+        +isBetween(Date start, Date end) bool
+        +toString() string
+    }
+
     BudgetManager *-- BST : expenseTree
     BudgetManager *-- MinHeap : billHeap
     BudgetManager *-- HashMap : categoryMap
     BudgetManager ..> Expense : addExpense()
     BudgetManager ..> Bill : addBill()
-    BudgetManager ..> CategoryInfo : category key lookup
-    BST --> Expense : nodes ordered by date
-    MinHeap --> Bill : nodes ordered by dueDate
-    HashMap --> CategoryInfo : maps category name
+    BudgetManager ..> CategoryInfo : getBudgetSnapshot()
+    BST *-- BSTNode : root
+    BSTNode --> Expense : data
+    HashMap *-- Entry : buckets
+    Entry --> CategoryInfo : value
+    MinHeap --> Bill : ordered by dueDate
+    Expense --> Date : date
+    Bill --> Date : dueDate paidOn

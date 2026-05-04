@@ -245,3 +245,43 @@ This section traces each user-facing requirement (the three core actions) throug
 - Component: `Date`
 - Header: `Date.h`
 - Methods: `Date::operator==()`, `Date::isBefore()`, `Date::isAfter()`, `Date::isBetween()`, `Date::toString()`
+
+---
+
+### 1b. Design Changes (Implementation Phase)
+
+A second round of design changes surfaced once implementation actually began. These were not header-review issues — they only became visible after the data structures were wired together and the UI demanded data the original API could not provide.
+
+The most consequential change was that `BudgetManager.h` had no `getAll()` (or any iteration primitive) on `HashMap`, but `generateReport()` and the UI both need to walk every tracked category. Rather than retrofit `HashMap` with iteration (which would have widened its public surface), `BudgetManager.cpp` keeps a file-scope `static std::vector<std::string> s_categoryNames` that is appended on every new category insert. Reports and snapshots iterate this vector and look up each name via `HashMap::get()`. This is documented inline as a single-instance assumption — acceptable for portfolio scope, but worth flagging.
+
+`getBudgetSnapshot()` was added to `BudgetManager` in Phase 5 (it does not appear in the original design). The ImGui panels need a value-copy view of every tracked category for live dashboard rendering, and the existing API only exposed budget data through `generateReport()`, which writes to `stdout`. `getBudgetSnapshot()` returns `std::vector<CategoryInfo>` so the renderer can iterate without holding `HashMap` internal pointers across frames (those pointers can be invalidated by a `resize()`).
+
+The `Makefile` was rebuilt from scratch in Phase 1. The original used `g++` with no GUI flags, which would never have linked against ImGui or GLFW. The replacement uses `clang++ -std=c++17`, pulls flags from `pkg-config --libs glfw3`, links the macOS frameworks (`-framework OpenGL`, `-framework Cocoa`, `-framework IOKit`, `-framework CoreVideo`), and explicitly excludes `tests.cpp` from `APP_SRC` via `filter-out` so the test runner's `main()` does not collide with the app's `main()` at link time.
+
+---
+
+## 2. Implementation Reflection
+
+### 2a. Data Structure Tradeoffs
+
+**HashMap over BST for budgets.** Budget lookup happens on every single `addExpense()` call — this is the hottest path in the system. HashMap gives O(1) amortized lookup; a BST keyed by category name would have given O(log n) per lookup, which compounds quickly when bulk-importing expenses. Category names are short ASCII strings, and the djb2 hash distributes them evenly across the open-addressed table, so collisions stay rare in practice. The tradeoff is real, though: HashMap has no natural ordering and no iteration primitive, which is exactly why `BudgetManager.cpp` had to keep the file-scope `s_categoryNames` registry to support `generateReport()` and `getBudgetSnapshot()`. A balanced BST would have given iteration for free at the cost of every lookup being slower — the wrong tradeoff for this access pattern.
+
+**MinHeap over sorted vector for bills.** The system always needs the *next-due* bill — the minimum due date — never a fully sorted list. MinHeap gives O(1) `peek()` and O(log n) `insert()`; a sorted vector would force every `insert()` to do an O(n) shift to maintain ordering, which is strictly worse on the dominant operation. The tradeoff is that `markPaidByName()` requires an O(n) linear scan over the heap array since the heap is indexed by priority, not by name. For portfolio scope (typically <50 bills) this is a non-issue, but at scale the right answer would be a heap paired with a side hash map from name to heap index.
+
+**BST over vector/deque for expenses.** Expense history is queried by date range, not by insertion order, so a vector would force every `getExpensesByRange()` call to do an O(n) full scan. The BST's `rangeQuery()` prunes entire subtrees in O(log n + k), where k is the number of results returned — the cost scales with the answer size, not the dataset size. The tradeoff is that this BST is not self-balancing: if expenses arrive in chronological order (the common case in a real app where the user logs today's expenses today), the tree degenerates into a right-leaning chain and inserts approach O(n). A self-balancing tree (red-black, AVL) would fix this; the portfolio scope accepts the degeneracy as a documented limitation.
+
+### 2b. Algorithm Notes — BST Range Query
+
+`rangeHelper()` is the core of the BST's range-query advantage over a flat scan, and it's worth understanding why the pruning works. At each node, the helper compares the node's date against the `[start, end]` window before deciding which subtrees to descend into. If `node->date.isBefore(start)`, then by the BST invariant the entire left subtree is also before `start` — every node there is strictly smaller — so we skip it and recurse only right. Symmetrically, if `node->date.isAfter(end)`, the entire right subtree is also after `end` and we recurse only left. Otherwise the node sits inside the window: we recurse left, append the node to the result, then recurse right. This pruning is what gives O(log n + k) instead of O(n) — we only ever visit nodes that are either ancestors of an in-range result or in-range themselves.
+
+---
+
+## 3. AI Strategy
+
+Claude Code (Opus 4.7) was used as the primary implementation collaborator across all seven phases of the project. It generated the initial header skeletons from the UML diagram, implemented every data structure against precise behavioral contracts, built the five ImGui panels, wrote the test suite (`tests.cpp`), and produced the Makefile that targets Apple Silicon clang++ with GLFW/OpenGL linkage. The lead architect role on my side was specifying contracts, reviewing diffs, and resolving spec divergences — the AI did the keystrokes.
+
+The two most useful Claude Code features for this project were **parallel sub-agent execution** and **git worktree isolation**. Wave 2 dispatched three sub-agents simultaneously — one each for `HashMap.cpp`, `MinHeap.cpp`, and `BST.cpp` — and they ran to completion in isolated worktrees without ever touching the same file. Without worktrees, three concurrent agents writing into the same `src/` directory would have raced on the Makefile and headers; with them, each agent had a private checkout and the merges were trivial. This cut wall-clock time on Wave 2 from sequential (likely 30+ minutes) to roughly a third of that.
+
+One AI suggestion was rejected and a substitute was kept. The original `instructions.md` spec called for `HashMap` to use **separate chaining with exactly 101 buckets**. The submitted design instead uses **open-addressing with linear probing and tombstone deletion**, sized at 16 buckets initial capacity and doubling on load factor > 0.7. The open-addressing design was retained because it had already been formally submitted and justified at the design-review stage, and switching backing strategies mid-implementation would have invalidated the traceability between the design document and the implementation. This is a clean example of where a stylized spec rule had to defer to a real-world commitment.
+
+The lead-architect judgment calls — adding `getBudgetSnapshot()` when the original header made the UI impossible, accepting the `s_categoryNames` workaround, ordering Wave 2 to minimize inter-agent dependencies, choosing to vendor ImGui rather than treat it as an external dep — are the parts that the AI could *propose* but could not *decide*. Those decisions are documented in the agent memory directory under `.claude/agent-memory/cpp-finance-architect/` and will inform any future maintenance pass on this codebase.
