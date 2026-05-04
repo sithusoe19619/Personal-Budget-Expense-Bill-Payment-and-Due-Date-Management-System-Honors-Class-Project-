@@ -21,6 +21,7 @@ public:
     void addExpense(const Expense& e);
     void addBill(const Bill& b);
     void setBudgetLimit(const std::string& category, double limit);
+    void setBudgetLimit(const std::string& category, double limit, int month, int year);
     void checkBudget(const std::string& category);
     bool hasPendingBills() const;  // call before getNextBill() to avoid empty-heap crash
     Bill getNextBill();
@@ -32,6 +33,7 @@ public:
     std::vector<Bill> getAllBills();
     void removeBill(const std::string& name, const Date& paymentDate);
     double getSpentInMonth(const std::string& category, int month, int year);
+    double getLimitForMonth(const std::string& category, int month, int year);
     std::vector<CategoryInfo> getBudgetSnapshotForMonth(int month, int year);
 };
 

@@ -12,12 +12,22 @@
 #include <cstdio>
 #include <iostream>
 #include <iomanip>
+#include <map>
+#include <string>
 
 // File-scope registry of category names tracked by BudgetManager.
 // NOTE: this is a single-instance assumption -- if the app ever holds
 // two BudgetManager objects, their category lists will collide. The
 // portfolio scope is a single manager, so this is acceptable.
 static std::vector<std::string> s_categoryNames;
+
+// Per-month budget limits keyed by "category-YYYY-MM".
+// Falls back to CategoryInfo::budgetLimit when no monthly override exists.
+static std::map<std::string, double> s_monthlyLimits;
+
+static std::string monthlyKey(const std::string& category, int month, int year) {
+    return category + "-" + std::to_string(year) + "-" + std::to_string(month);
+}
 
 // Pushes name into s_categoryNames only if it isn't already present.
 // O(n) over n = number of categories, which is small (<20 in practice).
@@ -47,6 +57,23 @@ void BudgetManager::setBudgetLimit(const std::string& category, double limit) {
     if (info != nullptr) {
         info->budgetLimit = limit;
     }
+}
+
+void BudgetManager::setBudgetLimit(const std::string& category, double limit, int month, int year) {
+    // Ensure the category exists in the HashMap (registers it if new).
+    setBudgetLimit(category, limit);
+    // Store the month-specific override.
+    s_monthlyLimits[monthlyKey(category, month, year)] = limit;
+}
+
+double BudgetManager::getLimitForMonth(const std::string& category, int month, int year) {
+    auto it = s_monthlyLimits.find(monthlyKey(category, month, year));
+    if (it != s_monthlyLimits.end()) {
+        return it->second;
+    }
+    // No monthly override — fall back to the category default.
+    CategoryInfo* info = categoryMap.get(category);
+    return (info != nullptr) ? info->budgetLimit : 0.0;
 }
 
 void BudgetManager::addExpense(const Expense& e) {
@@ -223,7 +250,8 @@ std::vector<CategoryInfo> BudgetManager::getBudgetSnapshotForMonth(int month, in
         CategoryInfo* p = categoryMap.get(name);
         if (p != nullptr) {
             CategoryInfo copy = *p;
-            copy.totalSpent = getSpentInMonth(name, month, year);
+            copy.totalSpent   = getSpentInMonth(name, month, year);
+            copy.budgetLimit  = getLimitForMonth(name, month, year);
             result.push_back(copy);
         }
     }

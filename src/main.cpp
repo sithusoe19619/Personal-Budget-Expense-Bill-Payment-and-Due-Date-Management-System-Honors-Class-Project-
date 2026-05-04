@@ -150,6 +150,7 @@ int main() {
 
     char   catName[64] = "";
     double catLimit    = 0.0;
+    int    catMonth = todayMonth, catYear = todayYear;
 
     int viewMonth = todayMonth;
     int viewYear  = todayYear;
@@ -256,10 +257,15 @@ int main() {
         ImGui::SetNextWindowSize(ImVec2(c2W, topH), ImGuiCond_Always);
         ImGui::Begin("Set Budget", nullptr, fixedFlags);
         {
-            ImGui::InputText("Name##c",           catName, sizeof(catName));
+            ImGui::InputText("Category##c",        catName, sizeof(catName));
             ImGui::InputDouble("Budget Limit##c", &catLimit, 1.0, 100.0, "$%.2f");
+            ImGui::Text("Month/Year:"); ImGui::SameLine();
+            ImGui::SetNextItemWidth(50); ImGui::InputInt("M##c", &catMonth, 0, 0); ImGui::SameLine();
+            ImGui::SetNextItemWidth(70); ImGui::InputInt("Y##c", &catYear,  0, 0);
+            if (catMonth < 1)  catMonth = 1;
+            if (catMonth > 12) catMonth = 12;
             if (ImGui::Button("Set Budget") && catName[0] != '\0' && catLimit > 0.0) {
-                manager.setBudgetLimit(catName, catLimit);
+                manager.setBudgetLimit(catName, catLimit, catMonth, catYear);
                 catName[0] = '\0';
                 catLimit   = 0.0;
             }
