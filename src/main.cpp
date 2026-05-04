@@ -10,6 +10,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <string>
 
@@ -143,6 +144,20 @@ int main() {
     char   catName[64] = "";
     double catLimit    = 0.0;
 
+    // Default Budget Overview to the current real-clock month.
+    time_t now_t = std::time(nullptr);
+    std::tm* lt  = std::localtime(&now_t);
+    int viewMonth = lt->tm_mon + 1;
+    int viewYear  = lt->tm_year + 1900;
+    // Navigation bounds: no future months; up to 2 years back.
+    const int maxMonth = viewMonth, maxYear = viewYear;
+    const int minMonth = viewMonth, minYear = viewYear - 2;
+
+    static const char* kMonthNames[] = {
+        "Jan","Feb","Mar","Apr","May","Jun",
+        "Jul","Aug","Sep","Oct","Nov","Dec"
+    };
+
     const ImGuiWindowFlags fixedFlags =
         ImGuiWindowFlags_NoMove    |
         ImGuiWindowFlags_NoResize  |
@@ -182,7 +197,28 @@ int main() {
         ImGui::SetNextWindowSize(ImVec2(c1W, H), ImGuiCond_Always);
         ImGui::Begin("Budget Overview", nullptr, fixedFlags);
         {
-            auto snapshot = manager.getBudgetSnapshot();
+            // Month navigator — disabled at bounds
+            bool atMin = (viewYear < minYear) || (viewYear == minYear && viewMonth <= minMonth);
+            bool atMax = (viewYear > maxYear) || (viewYear == maxYear && viewMonth >= maxMonth);
+
+            if (atMin) ImGui::BeginDisabled();
+            if (ImGui::ArrowButton("##prev", ImGuiDir_Left)) {
+                if (--viewMonth < 1)  { viewMonth = 12; viewYear--; }
+            }
+            if (atMin) ImGui::EndDisabled();
+
+            ImGui::SameLine();
+            ImGui::Text("%s %d", kMonthNames[viewMonth - 1], viewYear);
+            ImGui::SameLine();
+
+            if (atMax) ImGui::BeginDisabled();
+            if (ImGui::ArrowButton("##next", ImGuiDir_Right)) {
+                if (++viewMonth > 12) { viewMonth = 1; viewYear++; }
+            }
+            if (atMax) ImGui::EndDisabled();
+            ImGui::Separator();
+
+            auto snapshot = manager.getBudgetSnapshotForMonth(viewMonth, viewYear);
             if (ImGui::BeginTable("BudgetTbl", 5,
                 ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
                 ImGui::TableSetupColumn("Category",  ImGuiTableColumnFlags_WidthStretch);
@@ -307,7 +343,7 @@ int main() {
                 manager.addExpense(e);
 
                 lastExpStatus.clear();
-                for (auto& ci : manager.getBudgetSnapshot()) {
+                for (auto& ci : manager.getBudgetSnapshotForMonth(e.date.month, e.date.year)) {
                     if (ci.name == e.category) {
                         if (ci.budgetLimit == 0.0) {
                             lastExpStatus = "Logged (no budget set)";
@@ -317,6 +353,7 @@ int main() {
                             else if (p >= 80.0) lastExpStatus = "WARNING: near limit";
                             else                lastExpStatus = "OK";
                         }
+                        break;
                     }
                 }
                 expAmount         = 0.0;

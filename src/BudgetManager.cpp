@@ -205,3 +205,27 @@ void BudgetManager::removeBill(const std::string& name, const Date& paymentDate)
     billHeap.markPaidByName(name, paymentDate);
     billHeap.removeByName(name);
 }
+
+double BudgetManager::getSpentInMonth(const std::string& category, int month, int year) {
+    Date start(1, month, year);
+    Date end(31, month, year);  // day=31 is a safe ceiling; month comparison precedes day
+    auto expenses = expenseTree.rangeQuery(start, end);
+    double total = 0.0;
+    for (const auto& e : expenses) {
+        if (e.category == category) total += e.amount;
+    }
+    return total;
+}
+
+std::vector<CategoryInfo> BudgetManager::getBudgetSnapshotForMonth(int month, int year) {
+    std::vector<CategoryInfo> result;
+    for (const auto& name : s_categoryNames) {
+        CategoryInfo* p = categoryMap.get(name);
+        if (p != nullptr) {
+            CategoryInfo copy = *p;
+            copy.totalSpent = getSpentInMonth(name, month, year);
+            result.push_back(copy);
+        }
+    }
+    return result;
+}

@@ -31,6 +31,8 @@ public:
     std::vector<CategoryInfo> getBudgetSnapshot();
     std::vector<Bill> getAllBills();
     void removeBill(const std::string& name, const Date& paymentDate);
+    double getSpentInMonth(const std::string& category, int month, int year);
+    std::vector<CategoryInfo> getBudgetSnapshotForMonth(int month, int year);
 };
 
 #endif // BUDGETMANAGER_H
