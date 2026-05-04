@@ -165,8 +165,8 @@ int main() {
         }
         ImGui::End();
 
-        // ===== Panel 2: Log Expense (top-middle) =====
-        ImGui::SetNextWindowPos(ImVec2(420, 0), ImGuiCond_Always);
+        // ===== Panel 2: Log Expense (top-right) =====
+        ImGui::SetNextWindowPos(ImVec2(850, 0), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
         ImGui::Begin("Log Expense", nullptr, fixedFlags);
         {
@@ -254,8 +254,8 @@ int main() {
         }
         ImGui::End();
 
-        // ===== Panel 4: Set Budget (top-right) =====
-        ImGui::SetNextWindowPos(ImVec2(850, 0), ImGuiCond_Always);
+        // ===== Panel 4: Set Budget (top-middle) =====
+        ImGui::SetNextWindowPos(ImVec2(420, 0), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
         ImGui::Begin("Set Budget", nullptr, fixedFlags);
         {
