@@ -119,6 +119,9 @@ int main() {
 
     ImGui::StyleColorsDark();
 
+    // Save unscaled style so we can re-apply a fresh scale each frame.
+    ImGuiStyle baseStyle = ImGui::GetStyle();
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
@@ -154,6 +157,14 @@ int main() {
         glfwGetWindowSize(window, &winW, &winH);
         float W = static_cast<float>(winW);
         float H = static_cast<float>(winH);
+
+        // Scale UI relative to base 1280x720. Clamp so it never gets too tiny/huge.
+        float scale = (W / 1280.0f < H / 720.0f) ? W / 1280.0f : H / 720.0f;
+        if (scale < 0.5f) scale = 0.5f;
+        if (scale > 4.0f) scale = 4.0f;
+        io.FontGlobalScale = scale;
+        ImGui::GetStyle() = baseStyle;
+        ImGui::GetStyle().ScaleAllSizes(scale);
 
         // Layout: 3 columns. Column 1 = 33%, columns 2 & 3 split remaining equally.
         float c1W = W * 0.33f;
