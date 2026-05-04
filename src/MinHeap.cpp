@@ -1,4 +1,5 @@
 #include "MinHeap.h"
+#include <algorithm>
 #include <cassert>
 #include <utility>
 
@@ -93,4 +94,27 @@ bool MinHeap::markPaidByName(const std::string& name, const Date& paymentDate) {
         }
     }
     return false;
+}
+
+bool MinHeap::removeByName(const std::string& name) {
+    for (int i = 0; i < size; ++i) {
+        if (heap[i].name == name) {
+            heap[i] = heap[size - 1];
+            --size;
+            if (i < size) {
+                heapifyUp(i);
+                heapifyDown(i);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<Bill> MinHeap::getAllBills() const {
+    std::vector<Bill> result(heap, heap + size);
+    std::sort(result.begin(), result.end(), [](const Bill& a, const Bill& b) {
+        return a.dueDate.isBefore(b.dueDate);
+    });
+    return result;
 }

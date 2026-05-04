@@ -29,6 +29,8 @@ public:
     std::vector<Expense> getExpensesByRange(const Date& start, const Date& end);
     void generateReport();
     std::vector<CategoryInfo> getBudgetSnapshot();
+    std::vector<Bill> getAllBills();
+    void removeBill(const std::string& name, const Date& paymentDate);
 };
 
 #endif // BUDGETMANAGER_H

@@ -196,3 +196,12 @@ void BudgetManager::payNextBill(const Date& paymentDate) {
         billHeap.extractMin();
     }
 }
+
+std::vector<Bill> BudgetManager::getAllBills() {
+    return billHeap.getAllBills();
+}
+
+void BudgetManager::removeBill(const std::string& name, const Date& paymentDate) {
+    billHeap.markPaidByName(name, paymentDate);
+    billHeap.removeByName(name);
+}

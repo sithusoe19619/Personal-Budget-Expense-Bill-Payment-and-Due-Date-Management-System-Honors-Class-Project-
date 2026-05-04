@@ -2,6 +2,7 @@
 #define MINHEAP_H
 
 #include <string>
+#include <vector>
 #include "Bill.h"
 
 class MinHeap {
@@ -24,6 +25,8 @@ public:
     Bill peek() const;
     bool isEmpty() const;
     bool markPaidByName(const std::string& name, const Date& paymentDate);
+    bool removeByName(const std::string& name);
+    std::vector<Bill> getAllBills() const;
 };
 
 #endif // MINHEAP_H

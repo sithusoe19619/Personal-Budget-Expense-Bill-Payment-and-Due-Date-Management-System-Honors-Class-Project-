@@ -221,18 +221,39 @@ int main() {
         ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
         ImGui::Begin("Bills", nullptr, fixedFlags);
         {
-            ImGui::Text("Next Due Bill:");
+            ImGui::Text("Pending Bills:");
             ImGui::Separator();
-            if (manager.hasPendingBills()) {
-                Bill next = manager.getNextBill();
-                ImGui::Text("%-10s  $%.2f", next.name.c_str(), next.amountDue);
-                ImGui::Text("Due: %s", next.dueDate.toString().c_str());
-                ImGui::Spacing();
-                if (ImGui::Button("Mark as Paid")) {
-                    manager.payNextBill(Date(4, 5, 2025));
+            {
+                auto bills = manager.getAllBills();
+                std::string toRemove;
+                if (bills.empty()) {
+                    ImGui::TextDisabled("No pending bills.");
+                } else {
+                    if (ImGui::BeginTable("BillsTbl", 4,
+                        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                        ImGuiTableFlags_SizingStretchProp)) {
+                        ImGui::TableSetupColumn("Name");
+                        ImGui::TableSetupColumn("Amount");
+                        ImGui::TableSetupColumn("Due");
+                        ImGui::TableSetupColumn("##action");
+                        ImGui::TableHeadersRow();
+                        for (auto& b : bills) {
+                            ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(0); ImGui::Text("%s", b.name.c_str());
+                            ImGui::TableSetColumnIndex(1); ImGui::Text("$%.2f", b.amountDue);
+                            ImGui::TableSetColumnIndex(2); ImGui::Text("%s", b.dueDate.toString().c_str());
+                            ImGui::TableSetColumnIndex(3);
+                            std::string lbl = "Pay##" + b.name;
+                            if (ImGui::SmallButton(lbl.c_str())) {
+                                toRemove = b.name;
+                            }
+                        }
+                        ImGui::EndTable();
+                    }
                 }
-            } else {
-                ImGui::TextDisabled("No pending bills.");
+                if (!toRemove.empty()) {
+                    manager.removeBill(toRemove, Date(4, 5, 2025));
+                }
             }
             ImGui::Separator();
             ImGui::Text("Add Bill:");
