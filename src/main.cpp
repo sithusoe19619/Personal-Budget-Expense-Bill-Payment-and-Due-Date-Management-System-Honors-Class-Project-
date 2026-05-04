@@ -243,7 +243,7 @@ int main() {
                             ImGui::TableSetColumnIndex(1); ImGui::Text("$%.2f", b.amountDue);
                             ImGui::TableSetColumnIndex(2); ImGui::Text("%s", b.dueDate.toString().c_str());
                             ImGui::TableSetColumnIndex(3);
-                            std::string lbl = "Pay##" + b.name;
+                            std::string lbl = "Mark Paid##" + b.name;
                             if (ImGui::SmallButton(lbl.c_str())) {
                                 toRemove = b.name;
                             }
