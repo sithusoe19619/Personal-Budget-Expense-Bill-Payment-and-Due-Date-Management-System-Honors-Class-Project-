@@ -25,6 +25,7 @@ public:
     bool hasPendingBills() const;  // call before getNextBill() to avoid empty-heap crash
     Bill getNextBill();
     void markBillPaid(const std::string& name, const Date& paymentDate);
+    void payNextBill(const Date& paymentDate); // marks paid AND removes from heap
     std::vector<Expense> getExpensesByRange(const Date& start, const Date& end);
     void generateReport();
     std::vector<CategoryInfo> getBudgetSnapshot();

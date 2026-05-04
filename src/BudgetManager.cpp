@@ -189,3 +189,10 @@ std::vector<CategoryInfo> BudgetManager::getBudgetSnapshot() {
     }
     return result;
 }
+
+void BudgetManager::payNextBill(const Date& paymentDate) {
+    if (!billHeap.isEmpty()) {
+        billHeap.markPaidByName(billHeap.peek().name, paymentDate);
+        billHeap.extractMin();
+    }
+}

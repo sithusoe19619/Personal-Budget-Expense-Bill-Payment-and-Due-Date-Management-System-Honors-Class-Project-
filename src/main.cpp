@@ -229,7 +229,7 @@ int main() {
                 ImGui::Text("Due: %s", next.dueDate.toString().c_str());
                 ImGui::Spacing();
                 if (ImGui::Button("Mark as Paid")) {
-                    manager.markBillPaid(next.name, Date(4, 5, 2025));
+                    manager.payNextBill(Date(4, 5, 2025));
                 }
             } else {
                 ImGui::TextDisabled("No pending bills.");
