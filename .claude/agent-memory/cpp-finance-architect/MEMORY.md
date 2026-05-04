@@ -1,2 +1,7 @@
 - [Header/spec divergences from system prompt](project_header_spec_divergences.md) — Headers as committed differ from system-prompt contract in several specific ways; flag before implementing.
-- [Project stage as of 2026-05-04](project_stage_2026_05_04.md) — Headers complete, all .cpp files are 1-line stubs, no UI/main/imgui exists yet.
+- [Project stage at Checkpoint A](project_stage_2026_05_04.md) — Wave 1 done: ImGui vendored, Makefile rebuilt, blank window compiles. .cpp files still stubs.
+- [Project stage at Checkpoint C](project_stage_checkpoint_c.md) — Wave 3 done: BudgetManager wired, CLI smoke test green. UI still ImGui demo.
+- [Project stage at Checkpoint D](project_stage_checkpoint_d.md) — Wave 4 done: five fixed ImGui panels live; app feature-complete for portfolio scope.
+- [Project stage at Checkpoint E](project_stage_checkpoint_e.md) — Phase 7 done: README, reflection, and UML diagram finalized; project shippable.
+- [Makefile must exclude tests.cpp from APP_SRC](project_makefile_tests_exclusion.md) — Filter-out keeps the test runner's main() out of the app link.
+- [Future AI expansions — AWS Bedrock](future_ai_expansions.md) — 8 AI-powered features (chat, insights, forecast, NL entry, budget advisor, etc.) using Bedrock; all noted for future work.
