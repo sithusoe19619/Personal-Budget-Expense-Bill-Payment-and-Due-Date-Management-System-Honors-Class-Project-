@@ -12,3 +12,5 @@ run_tests
 .idea/
 *.swp
 .claude/
+compile_flags.txt
+.clangd

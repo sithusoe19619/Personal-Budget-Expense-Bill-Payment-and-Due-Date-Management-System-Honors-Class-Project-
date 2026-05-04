@@ -1,6 +1,0 @@
--std=c++17
--I/Users/marshall/Desktop/BMCC All Semesters/SPRING26/CSC 331H/Honors Project/finance-manager/include
--I/Users/marshall/Desktop/BMCC All Semesters/SPRING26/CSC 331H/Honors Project/finance-manager/imgui
--I/Users/marshall/Desktop/BMCC All Semesters/SPRING26/CSC 331H/Honors Project/finance-manager/imgui/backends
--I/opt/homebrew/include
--DGL_SILENCE_DEPRECATION
