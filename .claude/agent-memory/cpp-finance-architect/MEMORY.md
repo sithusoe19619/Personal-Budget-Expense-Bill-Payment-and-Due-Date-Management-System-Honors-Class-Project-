@@ -1,0 +1,2 @@
+- [Header/spec divergences from system prompt](project_header_spec_divergences.md) — Headers as committed differ from system-prompt contract in several specific ways; flag before implementing.
+- [Project stage as of 2026-05-04](project_stage_2026_05_04.md) — Headers complete, all .cpp files are 1-line stubs, no UI/main/imgui exists yet.
