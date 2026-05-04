@@ -254,10 +254,10 @@ int main() {
         }
         ImGui::End();
 
-        // ===== Panel 4: Add Category (top-right) =====
+        // ===== Panel 4: Set Budget (top-right) =====
         ImGui::SetNextWindowPos(ImVec2(850, 0), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(430, 360), ImGuiCond_Always);
-        ImGui::Begin("Add Category", nullptr, fixedFlags);
+        ImGui::Begin("Set Budget", nullptr, fixedFlags);
         {
             ImGui::InputText("Name##c",           catName, sizeof(catName));
             ImGui::InputDouble("Budget Limit##c", &catLimit, 1.0, 100.0, "$%.2f");
