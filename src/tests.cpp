@@ -300,6 +300,210 @@ static void testBudgetManager() {
 }
 
 // ---------------------------------------------------------------------------
+// 7. Date -- edge cases
+// ---------------------------------------------------------------------------
+static void testDateEdgeCases() {
+    // Cross-year boundary
+    assert(Date(31, 12, 2025).isBefore(Date(1, 1, 2026)) == true);
+    assert(Date(1, 1, 2026).isAfter(Date(31, 12, 2025)) == true);
+
+    // isBetween: both endpoints are inclusive
+    assert(Date(1,  6, 2025).isBetween(Date(1, 6, 2025), Date(30, 6, 2025)) == true);
+    assert(Date(30, 6, 2025).isBetween(Date(1, 6, 2025), Date(30, 6, 2025)) == true);
+    assert(Date(31, 5, 2025).isBetween(Date(1, 6, 2025), Date(30, 6, 2025)) == false);
+    assert(Date(1,  7, 2025).isBetween(Date(1, 6, 2025), Date(30, 6, 2025)) == false);
+
+    // toString: single-digit day and month are zero-padded
+    assert(Date(5, 7, 2025).toString() == "2025-07-05");
+    assert(Date(9, 9, 2025).toString() == "2025-09-09");
+
+    std::cout << "PASS: testDateEdgeCases" << std::endl;
+}
+
+// ---------------------------------------------------------------------------
+// 8. CategoryInfo -- edge cases
+// ---------------------------------------------------------------------------
+static void testCategoryInfoEdgeCases() {
+    // getRemainingBudget is negative when over-spent
+    CategoryInfo c;
+    c.budgetLimit = 100.0;
+    c.addExpense(150.0);
+    assert(c.getRemainingBudget() == -50.0);
+    assert(c.isOverBudget() == true);
+
+    // Zero budget limit: any expense pushes it over
+    CategoryInfo z;
+    z.budgetLimit = 0.0;
+    z.addExpense(0.01);
+    assert(z.isOverBudget() == true);
+
+    std::cout << "PASS: testCategoryInfoEdgeCases" << std::endl;
+}
+
+// ---------------------------------------------------------------------------
+// 9. HashMap -- tombstone reuse and partial removal
+// ---------------------------------------------------------------------------
+static void testHashMapEdgeCases() {
+    // Insert -> remove -> re-insert same key must work (tombstone reuse)
+    HashMap map;
+    CategoryInfo a; a.name = "A"; a.budgetLimit = 10.0;
+    map.insert("A", a);
+    map.remove("A");
+    assert(map.contains("A") == false);
+
+    CategoryInfo a2; a2.name = "A"; a2.budgetLimit = 20.0;
+    map.insert("A", a2);
+    assert(map.contains("A") == true);
+    assert(map.get("A")->budgetLimit == 20.0);
+
+    // Removing one key from a multi-key map leaves neighbors intact
+    HashMap m;
+    for (int i = 0; i < 5; ++i) {
+        CategoryInfo ci; ci.name = "K" + std::to_string(i); ci.budgetLimit = i * 5.0;
+        m.insert(ci.name, ci);
+    }
+    m.remove("K2");
+    assert(m.contains("K2") == false);
+    assert(m.contains("K0") == true);
+    assert(m.contains("K4") == true);
+    assert(m.get("K3")->budgetLimit == 15.0);
+
+    std::cout << "PASS: testHashMapEdgeCases" << std::endl;
+}
+
+// ---------------------------------------------------------------------------
+// 10. MinHeap -- removeByName, getAllBills, empty-heap checks
+// ---------------------------------------------------------------------------
+static void testMinHeapEdgeCases() {
+    // getAllBills on an empty heap returns an empty vector
+    MinHeap empty;
+    assert(empty.getAllBills().empty() == true);
+
+    // removeByName: hit returns true and removes; miss returns false
+    MinHeap h;
+    Bill b1; b1.name = "Alpha"; b1.dueDate = Date(10, 5, 2025); b1.amountDue = 100.0;
+    Bill b2; b2.name = "Beta";  b2.dueDate = Date(20, 5, 2025); b2.amountDue = 200.0;
+    Bill b3; b3.name = "Gamma"; b3.dueDate = Date(1,  6, 2025); b3.amountDue = 50.0;
+    h.insert(b1); h.insert(b2); h.insert(b3);
+
+    assert(h.removeByName("Beta")  == true);
+    assert(h.removeByName("Ghost") == false);
+
+    // getAllBills reflects the removal
+    assert(h.getAllBills().size() == 2);
+
+    // Extraction order after removeByName still respects heap order
+    assert(h.extractMin().name == "Alpha");
+    assert(h.extractMin().name == "Gamma");
+    assert(h.isEmpty() == true);
+
+    std::cout << "PASS: testMinHeapEdgeCases" << std::endl;
+}
+
+// ---------------------------------------------------------------------------
+// 11. BST -- empty tree, single node, left-heavy spine
+// ---------------------------------------------------------------------------
+static void testBSTEdgeCases() {
+    // Empty tree: all queries return empty
+    BST emptyTree;
+    assert(emptyTree.inOrder().empty() == true);
+    assert(emptyTree.search(Date(1, 1, 2025)).empty() == true);
+    assert(emptyTree.rangeQuery(Date(1, 1, 2025), Date(31, 12, 2025)).empty() == true);
+
+    // Single-node tree
+    BST single;
+    Expense e; e.date = Date(15, 6, 2025); e.category = "Food"; e.amount = 50.0;
+    single.insert(e);
+    assert(single.inOrder().size() == 1);
+    assert(single.search(Date(15, 6, 2025)).size() == 1);
+    assert(single.search(Date(16, 6, 2025)).empty() == true);
+    assert(single.rangeQuery(Date(1,  6, 2025), Date(30, 6, 2025)).size() == 1);
+    assert(single.rangeQuery(Date(1,  7, 2025), Date(31, 7, 2025)).empty() == true);
+
+    // Descending-date insertions produce a left-heavy spine; inOrder still sorts correctly
+    BST spine;
+    for (int d = 5; d >= 1; --d) {
+        Expense ex; ex.date = Date(d, 4, 2025); ex.amount = d * 10.0; ex.category = "X";
+        spine.insert(ex);
+    }
+    auto io = spine.inOrder();
+    assert(io.size() == 5);
+    for (size_t i = 0; i + 1 < io.size(); ++i)
+        assert(!io[i].date.isAfter(io[i + 1].date));
+
+    std::cout << "PASS: testBSTEdgeCases" << std::endl;
+}
+
+// ---------------------------------------------------------------------------
+// 12. BudgetManager -- monthly limits, getSpentInMonth, payNextBill,
+//     removeBill, getAllBills, getBudgetSnapshot
+// ---------------------------------------------------------------------------
+// NOTE: s_categoryNames and s_monthlyLimits are file-scope statics shared
+// across all BudgetManager instances. Use category names not used elsewhere
+// ("Dining", "Utilities") to avoid cross-test contamination.
+static void testBudgetManagerExtended() {
+    BudgetManager m;
+
+    // Monthly limit overload and getLimitForMonth
+    m.setBudgetLimit("Dining", 300.0, 4, 2025);
+    assert(m.getLimitForMonth("Dining", 4, 2025) == 300.0);
+    // A month with no override and no global default returns 0.0 (not set)
+    assert(m.getLimitForMonth("Dining", 5, 2025) == 0.0);
+
+    // getSpentInMonth only counts expenses in the right month AND category
+    Expense e1; e1.category = "Dining"; e1.amount = 120.0; e1.date = Date(5,  4, 2025);
+    Expense e2; e2.category = "Dining"; e2.amount = 80.0;  e2.date = Date(20, 4, 2025);
+    Expense e3; e3.category = "Dining"; e3.amount = 50.0;  e3.date = Date(1,  5, 2025);
+    m.addExpense(e1); m.addExpense(e2); m.addExpense(e3);
+    assert(m.getSpentInMonth("Dining", 4, 2025) == 200.0);
+    assert(m.getSpentInMonth("Dining", 5, 2025) == 50.0);
+
+    // getBudgetSnapshotForMonth reflects per-month spending and limits
+    auto snap = m.getBudgetSnapshotForMonth(4, 2025);
+    bool found = false;
+    for (const auto& ci : snap) {
+        if (ci.name == "Dining") {
+            assert(ci.totalSpent  == 200.0);
+            assert(ci.budgetLimit == 300.0);
+            found = true;
+        }
+    }
+    assert(found == true);
+
+    // getBudgetSnapshot returns global totals (all three expenses = 250)
+    auto global = m.getBudgetSnapshot();
+    found = false;
+    for (const auto& ci : global) {
+        if (ci.name == "Dining") {
+            assert(ci.totalSpent == 250.0);
+            found = true;
+        }
+    }
+    assert(found == true);
+
+    // payNextBill: marks paid AND removes from heap so the next bill advances
+    Bill b1; b1.name = "Utilities"; b1.dueDate = Date(5,  4, 2025); b1.amountDue = 80.0;
+    Bill b2; b2.name = "Streaming"; b2.dueDate = Date(15, 4, 2025); b2.amountDue = 15.0;
+    m.addBill(b1); m.addBill(b2);
+    assert(m.getNextBill().name == "Utilities");
+    m.payNextBill(Date(4, 4, 2025));
+    assert(m.getNextBill().name == "Streaming");
+
+    // removeBill: removes a specific bill by name; heap becomes empty
+    m.removeBill("Streaming", Date(14, 4, 2025));
+    assert(m.hasPendingBills() == false);
+
+    // getAllBills reflects current heap contents
+    Bill b3; b3.name = "Gym"; b3.dueDate = Date(1, 5, 2025); b3.amountDue = 40.0;
+    m.addBill(b3);
+    auto allBills = m.getAllBills();
+    assert(allBills.size() == 1);
+    assert(allBills[0].name == "Gym");
+
+    std::cout << "PASS: testBudgetManagerExtended" << std::endl;
+}
+
+// ---------------------------------------------------------------------------
 int main() {
     testDate();
     testCategoryInfo();
@@ -307,6 +511,12 @@ int main() {
     testMinHeap();
     testBST();
     testBudgetManager();
+    testDateEdgeCases();
+    testCategoryInfoEdgeCases();
+    testHashMapEdgeCases();
+    testMinHeapEdgeCases();
+    testBSTEdgeCases();
+    testBudgetManagerExtended();
     std::cout << "\nAll tests passed." << std::endl;
     return 0;
 }
