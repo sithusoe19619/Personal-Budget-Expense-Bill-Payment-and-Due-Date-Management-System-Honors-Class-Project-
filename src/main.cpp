@@ -11,7 +11,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
-#include <iostream>
 #include <string>
 
 #include "BudgetManager.h"
@@ -20,39 +19,6 @@
 #include "Date.h"
 #include "CategoryInfo.h"
 
-// CLI smoke test preserved from Phase 4.
-static void run_cli_smoke_test() {
-    std::cout << "---------- BudgetManager smoke test ----------" << std::endl;
-
-    BudgetManager manager;
-
-    manager.setBudgetLimit("Food", 500.0);
-    manager.setBudgetLimit("Transport", 200.0);
-
-    Expense e1; e1.category = "Food"; e1.amount = 400.0; e1.date = Date(1, 4, 2025); e1.description = "Groceries";
-    manager.addExpense(e1);
-    manager.checkBudget("Food");
-
-    Expense e2; e2.category = "Food"; e2.amount = 150.0; e2.date = Date(3, 4, 2025); e2.description = "Restaurant";
-    manager.addExpense(e2);
-    manager.checkBudget("Food");
-
-    Expense e3; e3.category = "Transport"; e3.amount = 50.0; e3.date = Date(5, 4, 2025); e3.description = "Bus pass";
-    manager.addExpense(e3);
-    manager.checkBudget("Transport");
-
-    Bill rent; rent.name = "Rent"; rent.amountDue = 1200.0; rent.dueDate = Date(1, 5, 2025);
-    Bill internet; internet.name = "Internet"; internet.amountDue = 60.0; internet.dueDate = Date(15, 4, 2025);
-    manager.addBill(rent);
-    manager.addBill(internet);
-    std::cout << "Next bill: " << manager.getNextBill().name << std::endl;
-
-    auto expenses = manager.getExpensesByRange(Date(1, 4, 2025), Date(4, 4, 2025));
-    std::cout << "Expenses Apr 1-4: " << expenses.size() << std::endl;
-
-    manager.generateReport();
-    std::cout << "---------- end smoke test ----------" << std::endl;
-}
 
 static void glfw_error_callback(int error, const char* description) {
     std::fprintf(stderr, "GLFW Error %d: %s\n", error, description);
@@ -88,8 +54,6 @@ static void key_callback(GLFWwindow* window, int key, int /*scancode*/, int acti
 }
 
 int main() {
-    run_cli_smoke_test();
-
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
         std::fprintf(stderr, "Failed to initialize GLFW\n");
@@ -237,11 +201,17 @@ int main() {
                                  ? (info.totalSpent / info.budgetLimit * 100.0) : 0.0;
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0); ImGui::Text("%s", info.name.c_str());
-                    ImGui::TableSetColumnIndex(1); ImGui::Text("$%.0f", info.budgetLimit);
-                    ImGui::TableSetColumnIndex(2); ImGui::Text("$%.0f", info.totalSpent);
-                    ImGui::TableSetColumnIndex(3); ImGui::Text("%.0f%%", pct);
+                    ImGui::TableSetColumnIndex(1);
+                    if (info.budgetLimit == 0.0) ImGui::TextDisabled("-");
+                    else                         ImGui::Text("$%.0f", info.budgetLimit);
+                    ImGui::TableSetColumnIndex(2);
+                    if (info.budgetLimit == 0.0) ImGui::TextDisabled("-");
+                    else                         ImGui::Text("$%.0f", info.totalSpent);
+                    ImGui::TableSetColumnIndex(3);
+                    if (info.budgetLimit == 0.0) ImGui::TextDisabled("-");
+                    else                         ImGui::Text("%.0f%%", pct);
                     ImGui::TableSetColumnIndex(4);
-                    if      (info.budgetLimit == 0.0) ImGui::TextColored({0.6f,0.6f,0.6f,1.f}, "no limit");
+                    if      (info.budgetLimit == 0.0) ImGui::TextColored({0.6f,0.6f,0.6f,1.f}, "not set");
                     else if (pct > 100.0)             ImGui::TextColored({1.f,0.2f,0.2f,1.f},  "EXCEEDED");
                     else if (pct >= 80.0)             ImGui::TextColored({1.f,0.85f,0.f,1.f},  "WARNING");
                     else                              ImGui::TextColored({0.2f,0.9f,0.2f,1.f}, "OK");

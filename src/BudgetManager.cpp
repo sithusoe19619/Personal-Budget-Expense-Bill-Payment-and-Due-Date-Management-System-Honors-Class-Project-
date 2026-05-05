@@ -60,9 +60,16 @@ void BudgetManager::setBudgetLimit(const std::string& category, double limit) {
 }
 
 void BudgetManager::setBudgetLimit(const std::string& category, double limit, int month, int year) {
-    // Ensure the category exists in the HashMap (registers it if new).
-    setBudgetLimit(category, limit);
-    // Store the month-specific override.
+    // Register the category if new, but do NOT touch the global budgetLimit —
+    // that would make every other month fall back to this month's value.
+    if (!categoryMap.contains(category)) {
+        CategoryInfo info;
+        info.name        = category;
+        info.budgetLimit = 0.0;
+        info.totalSpent  = 0.0;
+        categoryMap.insert(category, info);
+        rememberCategory(category);
+    }
     s_monthlyLimits[monthlyKey(category, month, year)] = limit;
 }
 
