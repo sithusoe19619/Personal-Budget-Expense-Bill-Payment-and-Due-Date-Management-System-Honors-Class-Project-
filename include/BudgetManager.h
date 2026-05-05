@@ -35,6 +35,7 @@ public:
     double getSpentInMonth(const std::string& category, int month, int year);
     double getLimitForMonth(const std::string& category, int month, int year);
     std::vector<CategoryInfo> getBudgetSnapshotForMonth(int month, int year);
+    static void clearStatics(); // call on logout to wipe file-scope state
 };
 
 #endif // BUDGETMANAGER_H

@@ -264,3 +264,8 @@ std::vector<CategoryInfo> BudgetManager::getBudgetSnapshotForMonth(int month, in
     }
     return result;
 }
+
+void BudgetManager::clearStatics() {
+    s_categoryNames.clear();
+    s_monthlyLimits.clear();
+}
