@@ -203,17 +203,18 @@ int main() {
             ImGui::Separator();
             ImGui::Spacing();
 
-            ImGui::SetNextItemWidth(panelW - 16.0f);
-            ImGui::InputText("##lu", loginUserBuf, sizeof(loginUserBuf));
-            ImGui::SameLine(0, 0); ImGui::TextDisabled(" Username");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputTextWithHint("##lu", "Username",
+                                     loginUserBuf, sizeof(loginUserBuf));
 
-            ImGui::SetNextItemWidth(panelW - 16.0f);
-            ImGui::InputText("##lp", loginPassBuf, sizeof(loginPassBuf),
-                             ImGuiInputTextFlags_Password);
-            ImGui::SameLine(0, 0); ImGui::TextDisabled(" Password");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputTextWithHint("##lp", "Password",
+                                     loginPassBuf, sizeof(loginPassBuf),
+                                     ImGuiInputTextFlags_Password);
 
             ImGui::Spacing();
-            float btnW = (panelW - 24.0f) * 0.5f;
+            float spacing = ImGui::GetStyle().ItemSpacing.x;
+            float btnW    = (ImGui::GetContentRegionAvail().x - spacing) * 0.5f;
             if (ImGui::Button("Login", ImVec2(btnW, 0))) {
                 int id = db.loginUser(loginUserBuf, loginPassBuf);
                 if (id >= 0) {
@@ -262,22 +263,23 @@ int main() {
             ImGui::Separator();
             ImGui::Spacing();
 
-            ImGui::SetNextItemWidth(panelW - 16.0f);
-            ImGui::InputText("##ru", regUserBuf, sizeof(regUserBuf));
-            ImGui::SameLine(0, 0); ImGui::TextDisabled(" Username");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputTextWithHint("##ru", "Username",
+                                     regUserBuf, sizeof(regUserBuf));
 
-            ImGui::SetNextItemWidth(panelW - 16.0f);
-            ImGui::InputText("##rp", regPassBuf, sizeof(regPassBuf),
-                             ImGuiInputTextFlags_Password);
-            ImGui::SameLine(0, 0); ImGui::TextDisabled(" Password");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputTextWithHint("##rp", "Password",
+                                     regPassBuf, sizeof(regPassBuf),
+                                     ImGuiInputTextFlags_Password);
 
-            ImGui::SetNextItemWidth(panelW - 16.0f);
-            ImGui::InputText("##rp2", regPass2Buf, sizeof(regPass2Buf),
-                             ImGuiInputTextFlags_Password);
-            ImGui::SameLine(0, 0); ImGui::TextDisabled(" Confirm Password");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputTextWithHint("##rp2", "Confirm Password",
+                                     regPass2Buf, sizeof(regPass2Buf),
+                                     ImGuiInputTextFlags_Password);
 
             ImGui::Spacing();
-            float btnW = (panelW - 24.0f) * 0.5f;
+            float spacing = ImGui::GetStyle().ItemSpacing.x;
+            float btnW    = (ImGui::GetContentRegionAvail().x - spacing) * 0.5f;
             if (ImGui::Button("Register", ImVec2(btnW, 0))) {
                 authError.clear();
                 if (regUserBuf[0] == '\0') {
