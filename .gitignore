@@ -20,3 +20,5 @@ imgui.ini
 
 # SQLite database (user data, never commit)
 *.db
+*.db-shm
+*.db-wal
