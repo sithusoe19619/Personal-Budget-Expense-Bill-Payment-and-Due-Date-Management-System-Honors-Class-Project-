@@ -325,7 +325,7 @@ int main() {
 
             // ===== Panel 1: Budget Overview =====
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(ImVec2(c1W, H), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(c1W, topH), ImGuiCond_Always);
             ImGui::Begin("Budget Overview", nullptr, fixedFlags);
             {
                 // User info + logout
@@ -402,13 +402,21 @@ int main() {
             }
             ImGui::End();
 
+            // ===== Panel 1b: (placeholder, under Budget Overview) =====
+            ImGui::SetNextWindowPos(ImVec2(0, topH), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(c1W, botH), ImGuiCond_Always);
+            ImGui::Begin("New Panel##c1b", nullptr, fixedFlags);
+            {
+            }
+            ImGui::End();
+
             // ===== Panel 2: Set Budget =====
             ImGui::SetNextWindowPos(ImVec2(c1W, 0), ImGuiCond_Always);
             ImGui::SetNextWindowSize(ImVec2(c2W, topH), ImGuiCond_Always);
             ImGui::Begin("Set Budget", nullptr, fixedFlags);
             {
                 ImGui::InputText("Category##c",       catName, sizeof(catName));
-                ImGui::InputDouble("Budget Limit##c", &catLimit, 1.0, 100.0, "$%.2f");
+                ImGui::InputDouble("Budget Limit##c", &catLimit, 0.0, 0.0, "$%.2f");
                 ImGui::Text("Month/Year:"); ImGui::SameLine();
                 ImGui::SetNextItemWidth(50); ImGui::InputInt("M##c", &catMonth, 0, 0); ImGui::SameLine();
                 ImGui::SetNextItemWidth(70); ImGui::InputInt("Y##c", &catYear,  0, 0);
@@ -464,7 +472,7 @@ int main() {
                 ImGui::Separator();
                 ImGui::Text("Add Bill:");
                 ImGui::InputText("Name##b",     billName,   sizeof(billName));
-                ImGui::InputDouble("Amount##b", &billAmount, 0.01, 10.0, "$%.2f");
+                ImGui::InputDouble("Amount##b", &billAmount, 0.0, 0.0, "$%.2f");
                 ImGui::Text("Due:"); ImGui::SameLine();
                 ImGui::SetNextItemWidth(50); ImGui::InputInt("D##b", &billDay,   0, 0); ImGui::SameLine();
                 ImGui::SetNextItemWidth(50); ImGui::InputInt("M##b", &billMonth, 0, 0); ImGui::SameLine();
@@ -489,7 +497,7 @@ int main() {
             {
                 ImGui::InputText("Category##e",    expCategory,    sizeof(expCategory));
                 ImGui::InputText("Description##e", expDescription, sizeof(expDescription));
-                ImGui::InputDouble("Amount##e", &expAmount, 0.01, 10.0, "$%.2f");
+                ImGui::InputDouble("Amount##e", &expAmount, 0.0, 0.0, "$%.2f");
                 ImGui::Text("Date:"); ImGui::SameLine();
                 ImGui::SetNextItemWidth(50); ImGui::InputInt("D##e", &expDay,   0, 0); ImGui::SameLine();
                 ImGui::SetNextItemWidth(50); ImGui::InputInt("M##e", &expMonth, 0, 0); ImGui::SameLine();
